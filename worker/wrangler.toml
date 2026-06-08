@@ -1,0 +1,14 @@
+name = "law-regulation-ai-base"
+main = "src/index.ts"
+compatibility_date = "2026-06-05"
+
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGINS = "https://*.github.io,http://localhost:5173,http://127.0.0.1:5173"
+TOKEN_TTL_SECONDS = "43200"
+
+[[kv_namespaces]]
+binding = "CONFIG_KV"
+id = "3ddc2bb27ee94cf08e389a140c035eec"
+preview_id = "5b612994622c430b9c5f7b9ab4841f03"

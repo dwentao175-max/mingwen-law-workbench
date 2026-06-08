@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+._*
+*.tsbuildinfo
+.wrangler/
+worker/node_modules/
+worker/.wrangler/
+.env
+.env.*
+!.env.example
+worker/.env
+worker/.env.*

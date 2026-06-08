@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-heading: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  --font-body: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  --transition-fast: 200ms;
+  --transition-base: 300ms;
+  --transition-slow: 400ms;
+}
+
+body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-kerning: normal;
+  text-wrap: pretty;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
