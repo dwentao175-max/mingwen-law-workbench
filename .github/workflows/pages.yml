@@ -36,7 +36,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL }}
+          VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL || 'https://law-regulation-ai-base.calvin-law-workbench.workers.dev' }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
