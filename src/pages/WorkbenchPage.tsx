@@ -40,13 +40,16 @@ import { diffTexts, hasTextChange } from '../lib/diff';
 import { exportInterpretationDocx } from '../lib/docxExport';
 import { exportCompareExcel, type RowDiffs } from '../lib/excelExport';
 import {
-  buildChunkStructuredPrompt,
-  buildStructuredPrompt,
+  buildBodyChunkPrompt,
+  buildBodyPrompt,
+  buildMetadataPrompt,
   builtInTemplates,
   defaultTemplate,
   emptyReport,
   isAiSupplement,
+  isMetadataMissing,
   isReportEmpty,
+  mergeMetadataAndBody,
   mergeReports,
   META_TEMPLATE_PROMPT,
   normalizeReport,
@@ -434,22 +437,32 @@ export function App() {
     setInterpretStage('generating');
     setDraftReport(null);
     setConfirmedReport(null);
-    setReportProgress({ stage: 'extracting', message: '正在准备结构化抽取...', done: 0, total: 1 });
+    setReportProgress({ stage: 'extracting', message: '第一遍：正在抽取标题与速览信息...', done: 0, total: 2 });
     try {
+      let metadata = await extractStructuredJson(buildMetadataPrompt(template, text), '标题/速览');
+      if (isMetadataMissing(metadata)) {
+        metadata = await extractStructuredJson(
+          `${buildMetadataPrompt(template, text)}\n\n上次元数据缺失。请仔细在公告、文首标题、发布机关落款、附则和施行日期条款中查找发布与施行信息；找不到仍填 null。`,
+          '标题/速览'
+        );
+      }
+
       const chunks = splitTextForModel(text);
-      let report: InterpretationReport;
+      let body: InterpretationReport;
       if (chunks.length > 1) {
         const partialReports: InterpretationReport[] = [];
-        setReportProgress({ stage: 'extracting', message: '文档较长，正在分段抽取结构化 JSON...', done: 0, total: chunks.length });
+        setReportProgress({ stage: 'extracting', message: '第二遍：文档极长，正在分段抽取正文板块...', done: 1, total: chunks.length + 1 });
         for (let index = 0; index < chunks.length; index += 1) {
-          partialReports.push(await extractStructuredJson(buildChunkStructuredPrompt(template, chunks[index], index, chunks.length)));
-          setReportProgress({ stage: 'extracting', message: '文档较长，正在分段抽取结构化 JSON...', done: index + 1, total: chunks.length });
+          partialReports.push(await extractStructuredJson(buildBodyChunkPrompt(template, chunks[index], index, chunks.length), '正文板块'));
+          setReportProgress({ stage: 'extracting', message: '第二遍：文档极长，正在分段抽取正文板块...', done: index + 2, total: chunks.length + 1 });
         }
-        setReportProgress({ stage: 'merging', message: '正在合并分段 JSON...', done: chunks.length, total: chunks.length });
-        report = mergeReports(partialReports);
+        setReportProgress({ stage: 'merging', message: '正在合并元数据与正文 JSON...', done: chunks.length + 1, total: chunks.length + 1 });
+        body = mergeReports(partialReports);
       } else {
-        report = await extractStructuredJson(buildStructuredPrompt(template, text));
+        setReportProgress({ stage: 'extracting', message: '第二遍：正在抽取正文解读板块...', done: 1, total: 2 });
+        body = await extractStructuredJson(buildBodyPrompt(template, text), '正文板块');
       }
+      const report = mergeMetadataAndBody(metadata, body);
       setDraftReport(report);
       setReportProgress({ stage: 'review', message: '结构化 JSON 已生成，请人工核查。', done: 1, total: 1 });
       setInterpretStage('review');
@@ -464,12 +477,12 @@ export function App() {
     }
   }
 
-  async function extractStructuredJson(prompt: string): Promise<InterpretationReport> {
+  async function extractStructuredJson(prompt: string, expectedSections = '标题/速览/正文板块'): Promise<InterpretationReport> {
     const call = async (content: string) => {
       const result = await apiText({ messages: [{ role: 'user', content }], temperature: 0.1 }, sessionToken);
       return parseInterpretationJson(extractMessageContent(result));
     };
-    const retryPrompt = `${prompt}\n\n上次输出不符合要求。请严格只返回一个 JSON 对象，且必须使用给定的板块字段结构（标题/速览/出台背景与意义/适用范围与义务主体/框架结构/核心要点解读/重点义务清单/关键时间节点与行动清单/新旧变化/法律责任与罚则/参考案例/合规建议），不要 markdown 围栏，不要解释。`;
+    const retryPrompt = `${prompt}\n\n上次输出不符合要求。请严格只返回一个 JSON 对象，且必须使用本次要求的字段结构（${expectedSections}）。缺失信息填 null 或 []，不要 markdown 围栏，不要解释。`;
     try {
       const first = await call(prompt);
       // 合法 JSON 但结构跑偏/几乎为空 → 用强约束重试一次，保留较优结果，避免静默白板。
@@ -1259,11 +1272,14 @@ function StructuredReportView({
         </header>
 
         <section className="infographic-overview reveal-card">
-          <article className="countdown-card">
-            <span>距施行</span>
-            <strong>{countdown?.replace(/^距施行还有\s*/, '').replace(/^已施行\s*/, '已施行 ') || '未明确'}</strong>
-            <em>{report.速览.施行日期 || '施行日期未明确'}</em>
-          </article>
+          {countdown && (
+            <article className="countdown-card">
+              <span>距施行</span>
+              <strong>{countdown.replace(/^距施行还有\s*/, '').replace(/^已施行\s*/, '已施行 ')}</strong>
+              <em>{report.速览.施行日期}</em>
+            </article>
+          )}
+          {!countdown && overviewInfoItem('施行日期', report.速览.施行日期 || '待定')}
           {overviewInfoItem('发布机关', report.速览.发布机关)}
           {overviewInfoItem('发布日期', report.速览.发布日期)}
           {overviewInfoItem('文号', report.速览.文号)}
@@ -1681,6 +1697,7 @@ function TemplateManager({
   const [saving, setSaving] = useState(false);
   const [trash, setTrash] = useState<{ items: TemplateTrashItem[]; usage: TemplateTrashUsage } | null>(null);
   const [trashMessage, setTrashMessage] = useState('');
+  const [templateMessage, setTemplateMessage] = useState('');
 
   useEffect(() => {
     setDraft(templateDraft(currentTemplate));
@@ -1689,8 +1706,12 @@ function TemplateManager({
   async function saveDraft() {
     if (!draft.name.trim() || !draft.prompt.trim()) return;
     const author = promptRequiredAuthor('请输入署名（必填），同事会在模板列表中看到：');
-    if (!author) return;
+    if (!author) {
+      setTemplateMessage('已取消保存。');
+      return;
+    }
     setSaving(true);
+    setTemplateMessage('');
     try {
       const next: Template = {
         ...draft,
@@ -1704,6 +1725,9 @@ function TemplateManager({
       };
       await onSaveTemplate(next);
       setDraft(templateDraft(next));
+      setTemplateMessage('模板已保存。');
+    } catch (error) {
+      setTemplateMessage(error instanceof Error ? `保存失败：${error.message}` : '保存失败，请稍后重试。');
     } finally {
       setSaving(false);
     }
@@ -1711,9 +1735,18 @@ function TemplateManager({
 
   async function removeTemplate(id: string) {
     const author = promptRequiredAuthor('请输入署名（必填），用于回收站记录：');
-    if (!author) return;
-    await onDeleteTemplate(id, author);
-    if (sessionRole === 'admin') void refreshTrash();
+    if (!author) {
+      setTemplateMessage('已取消删除。');
+      return;
+    }
+    setTemplateMessage('');
+    try {
+      await onDeleteTemplate(id, author);
+      setTemplateMessage('模板已删除，并移入回收站。');
+      if (sessionRole === 'admin') void refreshTrash();
+    } catch (error) {
+      setTemplateMessage(error instanceof Error ? `删除失败：${error.message}` : '删除失败，请稍后重试。');
+    }
   }
 
   async function refreshTrash() {
@@ -1783,6 +1816,7 @@ function TemplateManager({
           </label>
           <p className="empty-section-note">模板只决定“解读风格”；速览/义务/罚则等板块结构与报告版式由系统统一保证，改这里不会让 HTML/Word 渲染错位。</p>
           {draft.builtin && <p className="warning">内置模板不能直接修改；保存后会生成一份自定义模板。</p>}
+          {templateMessage && <p className={templateMessage.includes('失败') ? 'warning' : 'success'}>{templateMessage}</p>}
           <button className="primary block-save" onClick={() => void saveDraft()} disabled={saving || !draft.name.trim() || !draft.prompt.trim()}>
             {saving ? '保存中...' : '保存模板'}
           </button>
@@ -1847,7 +1881,9 @@ function TemplateGuide() {
 }
 
 function promptRequiredAuthor(message: string): string | null {
-  const author = window.prompt(message)?.trim() ?? '';
+  const input = window.prompt(message);
+  if (input == null) return null;
+  const author = input.trim();
   if (!author) {
     window.alert('署名不能为空。');
     return null;

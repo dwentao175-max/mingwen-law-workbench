@@ -2701,6 +2701,7 @@ button:disabled {
 }
 
 .infographic-overview article {
+  min-height: 112px;
   padding: 16px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 16px;
@@ -2726,7 +2727,7 @@ button:disabled {
 
 .infographic-overview .countdown-card {
   grid-row: span 2;
-  min-height: 210px;
+  min-height: 224px;
   background: #000;
   color: #fff;
 }
