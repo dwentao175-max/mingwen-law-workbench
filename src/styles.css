@@ -2405,6 +2405,24 @@ button:disabled {
   white-space: nowrap;
 }
 
+.ai-verify-all-button {
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.ai-verify-all-button:hover {
+  border-color: #000;
+  background: #000;
+  color: #fff;
+}
+
 .json-node {
   display: grid;
   gap: 10px;

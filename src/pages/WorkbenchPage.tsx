@@ -1024,6 +1024,9 @@ function ReviewEditor({
   const pendingAiCount = aiSupplementPaths.filter((path) => !verifiedAiPaths.has(path)).length;
   const verifiedAiCount = aiSupplementPaths.length - pendingAiCount;
   const canConfirm = pendingAiCount === 0;
+  const markAllAiVerified = () => {
+    setVerifiedAiPaths(new Set(aiSupplementPaths));
+  };
 
   useEffect(() => {
     const nodes = REVIEW_SECTIONS.map((section) => document.getElementById(reviewSectionId(section.key))).filter((node): node is HTMLElement => Boolean(node));
@@ -1073,6 +1076,11 @@ function ReviewEditor({
         <div className="review-check-progress">
           <span>待核对 {pendingAiCount} 项 / 已核对 {verifiedAiCount} 项</span>
           {!!aiSupplementPaths.length && <AiBadge />}
+          {pendingAiCount > 0 && (
+            <button className="ai-verify-all-button" type="button" onClick={markAllAiVerified}>
+              全部标记已核对
+            </button>
+          )}
         </div>
       </header>
 
