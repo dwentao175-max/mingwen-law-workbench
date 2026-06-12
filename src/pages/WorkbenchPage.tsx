@@ -1133,8 +1133,9 @@ function ReviewEditor({
                   onVerifyAiPath={(path) =>
                     setVerifiedAiPaths((current) => {
                       const next = new Set(current);
-                      if (next.has(path)) next.delete(path);
-                      else next.add(path);
+                      const relatedPaths = relatedAiSupplementPaths(path, aiSupplementPaths);
+                      if (next.has(path)) relatedPaths.forEach((item) => next.delete(item));
+                      else relatedPaths.forEach((item) => next.add(item));
                       return next;
                     })
                   }
@@ -1187,6 +1188,10 @@ function collectAiSupplementPaths(value: unknown, path = 'root'): string[] {
     paths.push(...collectAiSupplementPaths(item, `${path}.${key}`));
   });
   return [...new Set(paths)];
+}
+
+function relatedAiSupplementPaths(path: string, aiSupplementPaths: string[]): string[] {
+  return aiSupplementPaths.filter((item) => item === path || item.startsWith(`${path}.`) || path.startsWith(`${item}.`));
 }
 
 function isDirectAiSupplement(value: unknown): boolean {

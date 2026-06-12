@@ -41,6 +41,14 @@ describe('parseInterpretationJson', () => {
 
     expect(report.出台背景与意义?.来源).toBe('AI补充');
   });
+
+  it('repairs common missing commas between object properties', () => {
+    const report = parseInterpretationJson('{"标题":"测试解读" "速览":{"施行日期":"2026年6月8日",},"合规建议":["建立台账",]}');
+
+    expect(report.标题).toBe('测试解读');
+    expect(report.速览.施行日期).toBe('2026年6月8日');
+    expect(report.合规建议).toEqual(['建立台账']);
+  });
 });
 
 describe('mergeReports', () => {

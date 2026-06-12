@@ -158,8 +158,28 @@ export function parseInterpretationJson(text: string): InterpretationReport {
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start < 0 || end < start) throw new Error('AI 未返回 JSON 对象');
-  const parsed = JSON.parse(cleaned.slice(start, end + 1)) as unknown;
-  return normalizeReport(parsed);
+  const jsonText = cleaned.slice(start, end + 1);
+  const candidates = [jsonText, repairLooseJson(jsonText)];
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      return normalizeReport(parsed);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('AI 返回的 JSON 无法解析');
+}
+
+function repairLooseJson(text: string): string {
+  return text
+    .replace(/，/g, ',')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/,\s*([}\]])/g, '$1')
+    .replace(/("[^"\\]*(?:\\.[^"\\]*)*")\s*(?="[^"]+"\s*:)/g, '$1,')
+    .replace(/([}\]])\s*(?="[^"]+"\s*:)/g, '$1,');
 }
 
 export function normalizeReport(value: unknown): InterpretationReport {
