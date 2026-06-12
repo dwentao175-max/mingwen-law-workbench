@@ -1175,18 +1175,18 @@ function isEmptyReviewValue(value: unknown): boolean {
   return false;
 }
 
-function collectAiSupplementPaths(value: unknown, path = 'root'): string[] {
+function collectAiSupplementPaths(value: unknown, path = ''): string[] {
   const paths: string[] = [];
   if (!value || typeof value !== 'object') return paths;
   if (isDirectAiSupplement(value)) paths.push(path);
   if (Array.isArray(value)) {
     value.forEach((item, index) => {
-      paths.push(...collectAiSupplementPaths(item, `${path}.${index}`));
+      paths.push(...collectAiSupplementPaths(item, path ? `${path}.${index}` : String(index)));
     });
     return paths;
   }
   Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
-    paths.push(...collectAiSupplementPaths(item, `${path}.${key}`));
+    paths.push(...collectAiSupplementPaths(item, path ? `${path}.${key}` : key));
   });
   return [...new Set(paths)];
 }
