@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   BookOpen,
   ChevronRight,
@@ -1417,11 +1417,40 @@ function JsonEditor({
     );
   }
   return (
-    <textarea
-      className="json-scalar"
+    <AutoResizeTextarea
       value={value == null ? '' : String(value)}
       placeholder="空"
       onChange={(event) => onChange(event.target.value.trim() ? event.target.value : null)}
+    />
+  );
+}
+
+function AutoResizeTextarea({
+  value,
+  placeholder,
+  onChange
+}: {
+  value: string;
+  placeholder?: string;
+  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${node.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      className="json-scalar auto-resize-textarea"
+      value={value}
+      placeholder={placeholder}
+      rows={1}
+      onChange={onChange}
     />
   );
 }
