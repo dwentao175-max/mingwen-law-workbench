@@ -1021,7 +1021,7 @@ function ReviewEditor({
   const [verifiedAiPaths, setVerifiedAiPaths] = useState<Set<string>>(() => new Set());
   const editableReport = report;
   const aiSupplementPaths = useMemo(() => collectAiSupplementPaths(editableReport), [editableReport]);
-  const pendingAiCount = aiSupplementPaths.filter((path) => !verifiedAiPaths.has(path)).length;
+  const pendingAiCount = aiSupplementPaths.filter((path) => !isAiPathVerified(path, verifiedAiPaths)).length;
   const verifiedAiCount = aiSupplementPaths.length - pendingAiCount;
   const canConfirm = pendingAiCount === 0;
   const markAllAiVerified = () => {
@@ -1134,8 +1134,9 @@ function ReviewEditor({
                     setVerifiedAiPaths((current) => {
                       const next = new Set(current);
                       const relatedPaths = relatedAiSupplementPaths(path, aiSupplementPaths);
-                      if (next.has(path)) relatedPaths.forEach((item) => next.delete(item));
-                      else relatedPaths.forEach((item) => next.add(item));
+                      const targets = relatedPaths.length ? relatedPaths : [path];
+                      if (isAiPathVerified(path, next)) targets.forEach((item) => next.delete(item));
+                      else targets.forEach((item) => next.add(item));
                       return next;
                     })
                   }
@@ -1192,6 +1193,10 @@ function collectAiSupplementPaths(value: unknown, path = 'root'): string[] {
 
 function relatedAiSupplementPaths(path: string, aiSupplementPaths: string[]): string[] {
   return aiSupplementPaths.filter((item) => item === path || item.startsWith(`${path}.`) || path.startsWith(`${item}.`));
+}
+
+function isAiPathVerified(path: string, verifiedAiPaths: Set<string>): boolean {
+  return [...verifiedAiPaths].some((item) => item === path || item.startsWith(`${path}.`) || path.startsWith(`${item}.`));
 }
 
 function isDirectAiSupplement(value: unknown): boolean {
@@ -1391,7 +1396,7 @@ function JsonEditor({
           <div className="object-node-head">
             {label && <h3>{label}</h3>}
             {needsVerification && verifiedAiPaths && onVerifyAiPath && (
-              <AiVerificationControl path={path} verified={verifiedAiPaths.has(path)} onToggle={onVerifyAiPath} />
+              <AiVerificationControl path={path} verified={isAiPathVerified(path, verifiedAiPaths)} onToggle={onVerifyAiPath} />
             )}
           </div>
         )}
