@@ -114,7 +114,25 @@ async function request<T>(path: string, options: { method?: string; token?: stri
 
   if (response.status === 401) clearStoredSession();
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!response.ok) throw new Error(data?.error ?? `请求失败：HTTP ${response.status}`);
+  const data = parseResponseText(text);
+  if (!response.ok) throw new Error(responseErrorMessage(data, response.status));
   return data as T;
+}
+
+function parseResponseText(text: string): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+function responseErrorMessage(data: unknown, status: number): string {
+  const text = typeof data === 'string' ? data : '';
+  if (status === 524 || /error code:\s*524/i.test(text)) {
+    return 'AI 服务响应超时，请稍后重试；如果文档较长，请尝试缩短文档或分段解读。';
+  }
+  if (data && typeof data === 'object' && 'error' in data) return String((data as { error?: unknown }).error ?? `请求失败：HTTP ${status}`);
+  return text || `请求失败：HTTP ${status}`;
 }
