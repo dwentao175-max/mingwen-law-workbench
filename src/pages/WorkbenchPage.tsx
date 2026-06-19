@@ -312,9 +312,22 @@ export function App() {
     else setRightDoc(nextDoc);
     const nextLeft = side === 'left' ? nextDoc : leftDoc;
     const nextRight = side === 'right' ? nextDoc : rightDoc;
-    if (nextLeft.articles.length && nextRight.articles.length) {
-      initializeCompareGrid(alignArticles(nextLeft.articles, nextRight.articles));
+    const leftArticles = compareArticlesFromDoc(nextLeft);
+    const rightArticles = compareArticlesFromDoc(nextRight);
+    if (leftArticles.length && rightArticles.length) {
+      initializeCompareGrid(alignArticles(leftArticles, rightArticles));
     }
+  }
+
+  function canStartCompare() {
+    return !leftDoc.loading && !rightDoc.loading && compareArticlesFromDoc(leftDoc).length > 0 && compareArticlesFromDoc(rightDoc).length > 0;
+  }
+
+  function startCompare() {
+    const leftArticles = compareArticlesFromDoc(leftDoc);
+    const rightArticles = compareArticlesFromDoc(rightDoc);
+    if (!leftArticles.length || !rightArticles.length) return;
+    initializeCompareGrid(alignArticles(leftArticles, rightArticles));
   }
 
   async function handleInterpretFile(file: File) {
@@ -569,6 +582,10 @@ export function App() {
             <button className="ghost" onClick={loadSample}>
               载入示例文本
             </button>
+            <button className="primary compare-main-cta" onClick={startCompare} disabled={!canStartCompare()}>
+              开始对比
+              <ChevronRight size={16} />
+            </button>
           </section>
           <section className="workspace">
             <UploadPanel side="left" title="征求意见稿" doc={leftDoc} onFile={handleFile} />
@@ -740,6 +757,9 @@ function UploadPanel({
       </label>
       {doc.warning && <p className="warning">{doc.warning}</p>}
       {!!doc.articles.length && <p className="success">已识别 {doc.articles.length} 条条文，上传两份后会自动进入对齐网格。</p>}
+      {!doc.loading && !doc.warning && !doc.articles.length && !!doc.text.trim() && (
+        <p className="success">已读取全文，未识别到条号；可点击“开始对比”按全文进入核对。</p>
+      )}
     </section>
   );
 }
@@ -2307,6 +2327,12 @@ function extractMessageContent(result: unknown): string {
 
 function sampleDoc(fileName: string, split: SplitResult): DocState {
   return { fileName, text: documentTextFromSplit(split), preface: split.preface, articles: split.articles, warning: null, loading: false };
+}
+
+function compareArticlesFromDoc(doc: DocState): Article[] {
+  if (doc.articles.length) return doc.articles;
+  const text = doc.text.trim();
+  return text ? [makeArticle(null, text, null)] : [];
 }
 
 function mergeTemplates(remoteTemplates: Template[]): Template[] {
