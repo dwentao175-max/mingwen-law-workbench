@@ -57,6 +57,17 @@ describe('alignArticles', () => {
     expect(rows.map((row) => row.type)).toEqual(['deleted', 'inserted']);
   });
 
+  it('keeps same-number articles paired when the text is substantially rewritten but still related', () => {
+    const rows = alignArticles(
+      [article('第二条', '本办法适用于网络运营者报告网络安全事件。')],
+      [article('第二条', '在境内发生网络安全事件的监测预警、应急处置和信息报送活动，适用本办法。')]
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ type: 'matched' });
+    expect(rows[0].similarity).toBeLessThan(0.4);
+  });
+
   it('rescues moved and renumbered articles after sequence alignment', () => {
     const left = [
       article('第一条', '总则条文一。'),

@@ -2,6 +2,7 @@ import type { AlignRow, Article } from '../types';
 
 const DEFAULT_GAP_PENALTY = 0.4;
 const DEFAULT_MIN_MATCH = 0.4;
+const DEFAULT_SAME_NUMBER_MIN_MATCH = 0.18;
 const DEFAULT_MOVE_RESCUE = 0.55;
 
 export function articleSimilarity(left: Article, right: Article): number {
@@ -94,7 +95,11 @@ function rescueMovedPairs(rows: AlignRow[], threshold: number): AlignRow[] {
         similarity: articleSimilarity(leftItem.row.left, rightItem.row.right)
       }))
     )
-    .filter((candidate) => candidate.similarity >= threshold)
+    .filter(
+      (candidate) =>
+        candidate.similarity >= threshold ||
+        (sameArticleNumber(candidate.left, candidate.right) && candidate.similarity >= DEFAULT_SAME_NUMBER_MIN_MATCH)
+    )
     .sort((a, b) => b.similarity - a.similarity);
 
   const usedDeleted = new Set<number>();
@@ -119,6 +124,10 @@ function rescueMovedPairs(rows: AlignRow[], threshold: number): AlignRow[] {
     if (usedInserted.has(index)) return [];
     return [row];
   });
+}
+
+function sameArticleNumber(left: Article, right: Article): boolean {
+  return Boolean(left.number && right.number && left.number.trim() === right.number.trim());
 }
 
 function normalizeForCompare(text: string): string {
